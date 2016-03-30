@@ -1,5 +1,4 @@
 # -*-coding:utf-8-*-
-import matplotlib.pyplot as plt
 import numpy as np
 import re
 import xml.etree.ElementTree as ET
@@ -30,6 +29,9 @@ def run(name='photo'):
                 "graduate", "fahrenheit", "film", "slide", "print", "halftone",
                 "tripod", "nikon", "canon", "minolta", "exif", "bulb",
                 "exposures", "second", "seconds", "light", "lights"]
+                
+    neg_glossary = ["no", "never", "can't", "don't", "shouldn't"
+                    "careful"]
 
     posts = ET.parse('../data/{0}/Posts.xml'.format(name))
     users = ET.parse('../data/{0}/Users.xml'.format(name))
@@ -54,9 +56,13 @@ def run(name='photo'):
 
         # print(answer.attrib['Id'])
         occurrences = 0
-        for w in re.findall(r"\w+", answer.attrib['Body']):
+        neg_occurences = 0
+        words = re.findall(r"\w+", answer.attrib['Body'])
+        for w in words:
             if w in glossary:
                 occurrences += 1
+            if w in neg_glossary:
+                neg_occurences += 1
 
         classification.append(
             int(int(answer.attrib['Score']) > threshold_score))
@@ -78,14 +84,23 @@ def run(name='photo'):
         reputation = 0
         if user is not None:
             reputation = int(user.attrib['Reputation'])
+        
+        sentences = body.split('. ')
+        sentences_len = np.fromiter(map(len, sentences), dtype='i8')
+        
+        words_len = np.fromiter(map(len, words), dtype='i8')
 
-        ch_vector = [int(answer.attrib['CommentCount']),
-                     reputation,
+        ch_vector = [reputation,
                      len(body),
-                     body.count('a href'),
                      body.count('img src'),
-                     body.count('&'),
-                     occurrences]
+                     body.count('a href'),
+                     occurrences,
+                     neg_occurences,
+                     len(sentences),
+                     np.mean(sentences_len),
+                     len(words),
+                     np.mean(words_len)
+                    ]
 
         characteristics.append(ch_vector)
 
