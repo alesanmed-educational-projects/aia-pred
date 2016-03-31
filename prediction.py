@@ -1,4 +1,5 @@
 # -*-coding:utf-8-*-
+import itertools
 import numpy as np
 from sklearn.cross_validation import cross_val_score, KFold
 from sklearn.neighbors import KNeighborsClassifier
@@ -22,8 +23,8 @@ Caracteristicas:
  np.mean(words_len)
 """
 
-def KNNClassifier(neighbors=5):
-    characteristics = np.load('files/characteristics.npy')[:, [0, 1]]
+def KNNClassifier(indices, neighbors=5):
+    characteristics = np.load('files/characteristics.npy')[:, indices]
     classifications = np.load('files/classification.npy')
 
     modelo = Pipeline([('normalizador', StandardScaler()),
@@ -36,8 +37,8 @@ def KNNClassifier(neighbors=5):
 
     return valores
     
-def SGDClassification():
-    characteristics = np.load('files/characteristics.npy')[:, [0, 1]]
+def SGDClassification(indices):
+    characteristics = np.load('files/characteristics.npy')[:, indices]
     classifications = np.load('files/classification.npy')
 
     modelo = Pipeline([('normalizador', StandardScaler()),
@@ -50,43 +51,53 @@ def SGDClassification():
     return valores
 
 
-def LogisticRegressionClassification():
-    characteristics = np.load('files/characteristics.npy')
+def LogisticRegressionClassification(indices):
+    characteristics = np.load('files/characteristics.npy')[:, indices]
     classifications = np.load('files/classification.npy')
-    
-    normalizador = StandardScaler()
-    normalizador.fit(characteristics)
-    characteristics_n = normalizador.transform(characteristics)
-    
-    modelo = LogisticRegression()
-    characteristics_f_t = modelo.fit_transform(characteristics_n, classifications)
-    
-    print(np.nonzero(np.in1d(characteristics_f_t[0], characteristics_n[0])))
     
     modelo = Pipeline([('normalizador', StandardScaler()),
                        ('logistic', LogisticRegression())])
 
-    kfold5 = KFold(characteristics_f_t.shape[0], 6, shuffle=True)
+    kfold5 = KFold(characteristics.shape[0], 6, shuffle=True)
     valores = cross_val_score(
-        modelo, characteristics_f_t, classifications, cv=kfold5)
+        modelo, characteristics, classifications, cv=kfold5)
     
     return valores
 
 
 if __name__ == "__main__":
-    best = (-1, 0)
-    for i in range(5, 15):
-        print("{0}/15".format(i))
-        valores = np.max(KNNClassifier(i))
-        if valores >= best[0]:
-            best = (valores, i)
+    indices_range = list(range(10))
+    indices = [list(itertools.combinations(indices_range, i)) for i in range(2, 10)]
+    indices_flat = []
+    for i in range(len(indices)):
+        for j in range(len(indices[i])):
+            indices_flat.append(list(indices[i][j]))
+    
+    indices = indices_flat
+    
+    best_neighbor = (-1, 0, 0)
+    best_SGD = (-1, 0)
+    best_logreg = (-1, 0)
+    for i in range(len(indices_flat)):
+        print("{0}/{1}".format(i + 1, len(indices_flat)))
+        for j in range(5, 15):
+            max_value = np.max(KNNClassifier(indices[i], j))
+            if max_value >= best_neighbor[0]:
+                best_neighbor = (max_value, indices[i], j)
+        
+        max_value = np.max(SGDClassification(indices[i]))
+        if max_value >= best_SGD[0]:
+            best_SGD = (max_value, indices[i])
+        
+        max_value = np.max(LogisticRegressionClassification(indices[i]))
+        if max_value >= best_logreg[0]:
+            best_logreg = (max_value, indices[i])
+    
+    print("Best KNN: ")
+    print(best_neighbor)
+    
+    print("Best SGD: ")
+    print(best_SGD)
 
-    print(best)
-    
-    valores = SGDClassification()
-    print(np.max(valores))
-    
-    valores = LogisticRegressionClassification()
-    print(np.max(valores))
-    
-    
+    print("Best Log reg: ")
+    print(best_logreg)
